@@ -8,12 +8,7 @@ const Agent = require('agentkeepalive');
 const fs = require('fs');
 const path = require('path');
 
-const connectionPoolOptions = {
-  maxSockets: 1,
-  timeout: 25000,
-  maxFreeSockets: 256,
-  freeSocketTimeout: 15000,
-};
+
 
 const createDNSCache = () =>
   new Dnscache({ enable: true, ttl: 300, cachesize: 1000 });
@@ -153,9 +148,26 @@ const checker = async ({
   sheets: exclusiveSheets,
 }) => {
   const errors = [];
+  const connectionPoolOptions = {
+    maxSockets: 5,
+    timeout: 25000,
+    maxFreeSockets: 256,
+    freeSocketTimeout: 15000,
+  };
   const httpsAgent = new Agent.HttpsAgent(connectionPoolOptions);
   const api = axios.create({
     httpsAgent,
+  });
+  axiosRetry(api, {
+    retries: 3,
+    retryDelay: retryCount => retryCount * 1000,
+    retryCondition: error => {
+      const retrieablErrors = ['ECONNRESET', 'ETIMEDOUT', 'EHOSTUNREACH'];
+      if (error.code && retrieablErrors.includes(error.code)) {
+        return true;
+      }
+      return false;
+    },
   });
   if(debug){
     setInterval(() => {
@@ -169,31 +181,28 @@ const checker = async ({
       }, 2000);
   }
 
-  axiosRetry(api, {
-    retries: 3,
-    retryDelay: retryCount => retryCount * 1000,
-    retryCondition: error => {
-      const retrieablErrors = ['ECONNRESET', 'ETIMEDOUT', 'EHOSTUNREACH'];
-      if (error.code && retrieablErrors.includes(error.code)) {
-        return true;
-      }
-      return false;
-    },
-  });
+  
 
-  const checkUrl = async ({ oldUrl, newUrl }) => {
+  const checkUrl = async ({ oldUrl, newUrl, comment, testonly, regexEnabled }) => {
+    if(regexEnabled){
+      return; 
+    }
     try {
       const response = await api.get(`${baseUrl}${oldUrl}`);
       const fetchedUrl = response.request.res.responseUrl;
+      const expectedUrl = newUrl;
       if (debug) {
         console.log('expected');
-        console.log(newUrl);
+        console.log(expectedUrl);
         console.log('fetched');
       }
-      const clean = newUrl.startsWith('http')
+      let clean = expectedUrl.startsWith('http')
         ? fetchedUrl
         : fetchedUrl.split(baseUrl)[1];
-      if (clean !== newUrl) {
+      if(testonly && debug){
+        console.log('test-only')
+      }
+      if (clean !== expectedUrl) {
         if (clean === undefined) {
           debugger;
         }
@@ -254,9 +263,9 @@ const checker = async ({
       if (debug) {
         console.log(`current: ${index}`);
       }
-      const [oldUrl, newUrl] = rows[index];
+      const [oldUrl, newUrl, comment, exclude, testonly, regexEnabled] = rows[index];
       // eslint-disable-next-line no-await-in-loop
-      yield checkUrl({ oldUrl, newUrl });
+      yield checkUrl({ oldUrl, newUrl, comment, exclude, testonly, regexEnabled });
     }
   };
   const fileEnding = path.extname(source);
@@ -271,7 +280,7 @@ const checker = async ({
       await exportToNginx(results);
     }
     const promiseIterator = checkUrls(results);
-    const pool = new PromisePool(promiseIterator, 1);
+    const pool = new PromisePool(promiseIterator, 3);
 
     await pool.start();
 
@@ -283,4 +292,5 @@ const checker = async ({
     console.error(e);
   }
 };
+
 module.exports = checker;
