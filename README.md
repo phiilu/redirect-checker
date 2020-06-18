@@ -10,4 +10,6 @@ The Redirect Checker is a cli that allows to generate an nginx map from csvs/xls
 
 To get an overview of all available options run 
 
-`yarn cli`
+```bash
+./redirect-checker --url "http://www-production.wienenergie.at"
+```
