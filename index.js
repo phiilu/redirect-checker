@@ -1,13 +1,13 @@
-const csv = require("csv-parser");
-const axios = require("axios");
-const axiosRetry = require("axios-retry");
-const XLSX = require("xlsx");
-const PromisePool = require("es6-promise-pool");
-const Dnscache = require("dnscache");
-const googleParser = require("./drivers/google");
-const Agent = require("agentkeepalive");
-const fs = require("fs");
-const path = require("path");
+const csv = require('csv-parser');
+const axios = require('axios');
+const axiosRetry = require('axios-retry');
+const XLSX = require('xlsx');
+const PromisePool = require('es6-promise-pool');
+const Dnscache = require('dnscache');
+const googleParser = require('./drivers/google');
+const Agent = require('agentkeepalive');
+const fs = require('fs');
+const path = require('path');
 
 const createDNSCache = () =>
   new Dnscache({ enable: true, ttl: 300, cachesize: 1000 });
@@ -19,44 +19,44 @@ const exportToNginx = async (groups) => {
       const groupStructure = group.items
         .map(
           ([oldUrl, newUrl, comment, exclude, testonly, regexEnabled]) =>
-            `${oldUrl} ${newUrl};`
+            `${oldUrl} ${newUrl};`,
         )
-        .join("\n");
+        .join('\n');
       return `#
 # ${group.name}
 #
 ${groupStructure}`;
     })
-    .join("\n");
+    .join('\n');
 
   // useful for kinsta
   await fs.promises.writeFile(
-    path.resolve(__dirname, "./output/redirects.txt"),
+    path.resolve(__dirname, './output/redirects.txt'),
     `map $request_uri $redirect{
   ${structure}
 }`,
-    "utf8"
+    'utf8',
   );
 
   await fs.promises.writeFile(
-    path.resolve(__dirname, "./output/redirects.map"),
+    path.resolve(__dirname, './output/redirects.map'),
     structure,
-    "utf8"
+    'utf8',
   );
 };
 
 const writeErrors = async (outputErrors) => {
   await fs.promises.writeFile(
-    path.resolve(__dirname, "./output/errors.json"),
+    path.resolve(__dirname, './output/errors.json'),
     JSON.stringify(outputErrors),
-    "utf8"
+    'utf8',
   );
   await fs.promises.writeFile(
-    path.resolve(__dirname, "./output/errors.csv"),
+    path.resolve(__dirname, './output/errors.csv'),
     outputErrors
       .map((line) => [line.original.oldUrl, line.original.newUrl, line.error])
-      .join("\n"),
-    "utf8"
+      .join('\n'),
+    'utf8',
   );
 };
 
@@ -67,11 +67,11 @@ const csvParser = ({ source }) => {
       .pipe(
         csv({
           mapHeaders: ({ index }) => index,
-        })
+        }),
       )
-      .on("data", (data) => parseResult.push(Object.values(data)))
-      .on("end", async () => {
-        resolve([{ name: "general", items: parseResult }]);
+      .on('data', (data) => parseResult.push(Object.values(data)))
+      .on('end', async () => {
+        resolve([{ name: 'general', items: parseResult }]);
       });
   });
 };
@@ -86,7 +86,7 @@ const xlsxParser = ({ source, exclusiveSheets }) =>
       }
       const sheetData = XLSX.utils.sheet_to_json(sheet, {
         header: 1,
-        defval: "",
+        defval: '',
         blankrows: true,
       });
       const sheetParsed = [];
@@ -107,8 +107,8 @@ const xlsxParser = ({ source, exclusiveSheets }) =>
     resolve(parsed);
   });
 const parsers = {
-  ".csv": csvParser,
-  ".xlsx": xlsxParser,
+  '.csv': csvParser,
+  '.xlsx': xlsxParser,
   google: googleParser,
 };
 
@@ -142,7 +142,7 @@ const cleanResults = (res) =>
   });
 const checker = async ({
   baseUrl,
-  source = "./input/redirects.csv",
+  source = './input/redirects.csv',
   toNginx,
   sheetId,
   debug = false,
@@ -163,7 +163,7 @@ const checker = async ({
     retries: 3,
     retryDelay: (retryCount) => retryCount * 1000,
     retryCondition: (error) => {
-      const retrieablErrors = ["ECONNRESET", "ETIMEDOUT", "EHOSTUNREACH"];
+      const retrieablErrors = ['ECONNRESET', 'ETIMEDOUT', 'EHOSTUNREACH'];
       if (error.code && retrieablErrors.includes(error.code)) {
         return true;
       }
@@ -174,9 +174,9 @@ const checker = async ({
     setInterval(() => {
       if (httpsAgent.statusChanged) {
         console.log(
-          "[%s] agent status changed: %j",
+          '[%s] agent status changed: %j',
           Date(),
-          httpsAgent.getCurrentStatus()
+          httpsAgent.getCurrentStatus(),
         );
       }
     }, 2000);
@@ -197,15 +197,15 @@ const checker = async ({
       const fetchedUrl = response.request.res.responseUrl;
       const expectedUrl = newUrl;
       if (debug) {
-        console.log("expected");
+        console.log('expected');
         console.log(expectedUrl);
-        console.log("fetched");
+        console.log('fetched');
       }
-      const clean = expectedUrl.startsWith("http")
+      const clean = expectedUrl.startsWith('http')
         ? fetchedUrl
         : fetchedUrl.split(baseUrl)[1];
       if (testonly && debug) {
-        console.log("test-only");
+        console.log('test-only');
       }
       if (clean !== expectedUrl) {
         if (clean === undefined) {
@@ -222,16 +222,16 @@ const checker = async ({
       }
       if (debug) {
         console.log(clean);
-        console.log("");
+        console.log('');
       }
     } catch (e) {
-      if (e.code === "ETIMEDOUT") {
-        console.log("timeout");
+      if (e.code === 'ETIMEDOUT') {
+        console.log('timeout');
         return;
       }
       if (!e.response) {
-        if (e.code === "EHOSTUNREACH") {
-          console.error("HOST UNREACHABLE - ");
+        if (e.code === 'EHOSTUNREACH') {
+          console.error('HOST UNREACHABLE - ');
           return;
         }
         errors.push({
@@ -239,9 +239,9 @@ const checker = async ({
             oldUrl,
             newUrl,
           },
-          error: "max_redirects_exceeded",
+          error: 'max_redirects_exceeded',
         });
-        console.log("");
+        console.log('');
         return;
       }
       errors.push({
@@ -252,7 +252,7 @@ const checker = async ({
         error: e.response.status,
       });
       console.error(`404 - expected: ${newUrl}`);
-      console.log("");
+      console.log('');
     }
   };
   // eslint-disable-next-line func-names
@@ -260,7 +260,7 @@ const checker = async ({
     const rows = [];
     groups.forEach((group) => group.items.forEach((item) => rows.push(item)));
     console.log(
-      `start test of ${groups.length} groups - ${rows.length} redirects`
+      `start test of ${groups.length} groups - ${rows.length} redirects`,
     );
     console.log(`start test of ${rows.length} redirects`);
     // eslint-disable-next-line no-restricted-syntax
@@ -282,7 +282,7 @@ const checker = async ({
       });
     }
   };
-  const fileEnding = sheetId ? "google" : path.extname(source);
+  const fileEnding = sheetId ? 'google' : path.extname(source);
   // determine source - start parsers
   let results = await parsers[fileEnding]({
     source: path.resolve(__dirname, source),
@@ -300,7 +300,7 @@ const checker = async ({
 
     await pool.start();
 
-    console.log("done");
+    console.log('done');
 
     await writeErrors(errors);
   } catch (e) {

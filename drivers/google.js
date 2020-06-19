@@ -1,14 +1,14 @@
-const fs = require("fs");
-const readline = require("readline");
-const path = require("path");
-const { google } = require("googleapis");
+const fs = require('fs');
+const readline = require('readline');
+const path = require('path');
+const { google } = require('googleapis');
 
 // If modifying these scopes, delete token.json.
-const SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"];
+const SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly'];
 // The file token.json stores the user's access and refresh tokens, and is
 // created automatically when the authorization flow completes for the first
 // time.
-const TOKEN_PATH = "token.json";
+const TOKEN_PATH = 'token.json';
 
 /**
  * Create an OAuth2 client with the given credentials, and then execute the
@@ -21,7 +21,7 @@ async function authorize(credentials) {
   const oAuth2Client = new google.auth.OAuth2(
     client_id,
     client_secret,
-    redirect_uris[0]
+    redirect_uris[0],
   );
 
   // Check if we have previously stored a token.
@@ -42,23 +42,23 @@ async function authorize(credentials) {
  */
 function getNewToken(oAuth2Client, callback) {
   const authUrl = oAuth2Client.generateAuthUrl({
-    access_type: "offline",
+    access_type: 'offline',
     scope: SCOPES,
   });
-  console.log("Authorize this app by visiting this url:", authUrl);
+  console.log('Authorize this app by visiting this url:', authUrl);
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
   });
-  rl.question("Enter the code from that page here: ", (code) => {
+  rl.question('Enter the code from that page here: ', (code) => {
     rl.close();
     oAuth2Client.getToken(code, (err, token) => {
-      if (err) return console.error("Error retrieving access token", err);
+      if (err) return console.error('Error retrieving access token', err);
       oAuth2Client.setCredentials(token);
       // Store the token to disk for later program executions
       fs.writeFile(TOKEN_PATH, JSON.stringify(token), (err) => {
         if (err) console.error(err);
-        console.log("Token stored to", TOKEN_PATH);
+        console.log('Token stored to', TOKEN_PATH);
       });
       callback(oAuth2Client);
     });
@@ -71,7 +71,7 @@ function getNewToken(oAuth2Client, callback) {
  */
 const getSheetData = async ({ auth, sheetId, exclusiveSheets }) => {
   try {
-    const sheets = google.sheets({ version: "v4", auth });
+    const sheets = google.sheets({ version: 'v4', auth });
 
     const response = await sheets.spreadsheets.get({
       spreadsheetId: sheetId,
@@ -82,7 +82,7 @@ const getSheetData = async ({ auth, sheetId, exclusiveSheets }) => {
     let rawSheets = [...response.data.sheets];
     if (exclusiveSheets) {
       rawSheets = rawSheets.filter(({ properties: { title } }) =>
-        exclusiveSheets.includes(title)
+        exclusiveSheets.includes(title),
       );
     }
     return rawSheets.map(({ properties: { title: name }, data }) => {
@@ -106,16 +106,16 @@ async function main({ sheetId, exclusiveSheets }) {
   try {
     // Load client secrets from a local file.
     const content = await fs.promises.readFile(
-      path.resolve(__dirname, "./credentials.json")
+      path.resolve(__dirname, './credentials.json'),
     );
     const auth = await authorize(JSON.parse(content));
     const sheetData = await getSheetData({ sheetId, auth, exclusiveSheets });
     return sheetData;
   } catch (error) {
-    if (error) return console.log("Error loading client secret file:", error);
+    if (error) return console.log('Error loading client secret file:', error);
     // Authorize a client with credentials, then call the Google Docs API.
 
-    if (error.signal !== "SIGINT") {
+    if (error.signal !== 'SIGINT') {
       console.error(error); // eslint-disable-line no-console
     }
   }
