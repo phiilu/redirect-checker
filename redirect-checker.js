@@ -20,8 +20,11 @@ program.option(
   '--googleSheetsId <sheetId>',
   'Google Sheet Id - eg. https://docs.google.com/spreadsheets/d/<google-sheets-id>',
 );
-program.option('--debug', 'debug');
-program.option('--to-nginx', 'toNginx');
+program.option('--debug', 'enables additional output');
+program.option(
+  '--to-nginx',
+  'creates an an redirects.map & redirects.txt nginx file',
+);
 
 program.parse(process.argv);
 

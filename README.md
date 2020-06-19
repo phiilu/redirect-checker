@@ -23,8 +23,8 @@ Options:
   --source <source>           Relative path to csv or xlsx file (default: "./input/redirects.xlsx")
   --sheets <sheets>           Exclude only certain sheets by name, comma separated. e.g: jahresreport,halb jahres report
   --googleSheetsId <sheetId>  Google Sheet Id - eg. https://docs.google.com/spreadsheets/d/<google-sheets-id>
-  --debug                     debug
-  --to-nginx                  toNginx
+  --debug                     enables additional output
+  --to-nginx                  creates an an redirects.map & redirects.txt nginx file
   -h, --help                  display help for command
 ```
 
