@@ -30,7 +30,7 @@ async function authorize(credentials) {
     oAuth2Client.setCredentials(JSON.parse(token));
     return oAuth2Client;
   } catch (e) {
-    return getNewToken(oAuth2Client);
+    return await getNewToken(oAuth2Client);
   }
 }
 
@@ -40,27 +40,29 @@ async function authorize(credentials) {
  * @param {google.auth.OAuth2} oAuth2Client The OAuth2 client to get token for.
  * @param {getEventsCallback} callback The callback for the authorized client.
  */
-function getNewToken(oAuth2Client, callback) {
-  const authUrl = oAuth2Client.generateAuthUrl({
-    access_type: 'offline',
-    scope: SCOPES,
-  });
-  console.log('Authorize this app by visiting this url:', authUrl);
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-  rl.question('Enter the code from that page here: ', (code) => {
-    rl.close();
-    oAuth2Client.getToken(code, (err, token) => {
-      if (err) return console.error('Error retrieving access token', err);
-      oAuth2Client.setCredentials(token);
-      // Store the token to disk for later program executions
-      fs.writeFile(TOKEN_PATH, JSON.stringify(token), (err) => {
-        if (err) console.error(err);
-        console.log('Token stored to', TOKEN_PATH);
+async function getNewToken(oAuth2Client) {
+  return new Promise((resolve, reject) => {
+    const authUrl = oAuth2Client.generateAuthUrl({
+      access_type: 'offline',
+      scope: SCOPES,
+    });
+    console.log('Authorize this app by visiting this url:', authUrl);
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+    rl.question('Enter the code from that page here: ', (code) => {
+      rl.close();
+      oAuth2Client.getToken(code, (err, token) => {
+        if (err) return console.error('Error retrieving access token', err);
+        oAuth2Client.setCredentials(token);
+        // Store the token to disk for later program executions
+        fs.writeFile(TOKEN_PATH, JSON.stringify(token), (err) => {
+          if (err) console.error(err);
+          console.log('Token stored to', TOKEN_PATH);
+        });
+        resolve(oAuth2Client);
       });
-      callback(oAuth2Client);
     });
   });
 }
