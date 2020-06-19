@@ -16,7 +16,10 @@ program.option(
   "--sheets <sheets>",
   "Exclude only certain sheets by name, comma separated. e.g: jahresreport,halb jahres report"
 );
-program.option("--googleSheetsId <sheetId>");
+program.option(
+  "--googleSheetsId <sheetId>",
+  "Google Sheet Id - eg. https://docs.google.com/spreadsheets/d/<google-sheets-id>"
+);
 program.option("--debug", "debug");
 program.option("--to-nginx", "toNginx");
 
