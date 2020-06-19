@@ -33,6 +33,16 @@ Run basic check
 ./redirect-checker --url "https://wienenergie.at"
 ```
 
+# Source
+
+## Document Structure
+
+| old                             | new                           | comment                           | exclude | testonly | regexEnabled |
+| ------------------------------- | ----------------------------- | --------------------------------- | ------- | -------- | ------------ |
+| /tarifkampangne                 | /tarifkampagne                | Fixes Typo                        |         |          |              |
+| ^/blog/energie                  | /blog/wien$1                  | Fix for blog                      |         |          | x            |
+| /blog/energie/going-live        | /blog/energie/wien/going-live | test for blog case                |         | x        |              |
+| /imnotsureifineedtoberedirected | /imprettysurethough           | Disabled - because we're not sure | x       |          |              |
 
 ## Available Sources
 
