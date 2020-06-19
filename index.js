@@ -1,63 +1,62 @@
-const csv = require('csv-parser');
-const axios = require('axios');
-const axiosRetry = require('axios-retry');
-const XLSX = require('xlsx');
-const PromisePool = require('es6-promise-pool');
-const Dnscache = require('dnscache');
-const Agent = require('agentkeepalive');
-const fs = require('fs');
-const path = require('path');
-
-
+const csv = require("csv-parser");
+const axios = require("axios");
+const axiosRetry = require("axios-retry");
+const XLSX = require("xlsx");
+const PromisePool = require("es6-promise-pool");
+const Dnscache = require("dnscache");
+const googleParser = require("./drivers/google");
+const Agent = require("agentkeepalive");
+const fs = require("fs");
+const path = require("path");
 
 const createDNSCache = () =>
   new Dnscache({ enable: true, ttl: 300, cachesize: 1000 });
 
 createDNSCache();
-const exportToNginx = async groups => {
+const exportToNginx = async (groups) => {
   const structure = groups
-    .map(group => {
+    .map((group) => {
       const groupStructure = group.items
         .map(
           ([oldUrl, newUrl, comment, exclude, testonly, regexEnabled]) =>
-            `${oldUrl} ${newUrl};`,
+            `${oldUrl} ${newUrl};`
         )
-        .join('\n');
+        .join("\n");
       return `#
 # ${group.name}
 #
 ${groupStructure}`;
     })
-    .join('\n');
+    .join("\n");
 
   // useful for kinsta
   await fs.promises.writeFile(
-    path.resolve(__dirname, './output/redirects.txt'),
+    path.resolve(__dirname, "./output/redirects.txt"),
     `map $request_uri $redirect{
   ${structure}
 }`,
-    'utf8',
+    "utf8"
   );
 
   await fs.promises.writeFile(
-    path.resolve(__dirname, './output/redirects.map'),
+    path.resolve(__dirname, "./output/redirects.map"),
     structure,
-    'utf8',
+    "utf8"
   );
 };
 
-const writeErrors = async outputErrors => {
+const writeErrors = async (outputErrors) => {
   await fs.promises.writeFile(
-    path.resolve(__dirname, './output/errors.json'),
+    path.resolve(__dirname, "./output/errors.json"),
     JSON.stringify(outputErrors),
-    'utf8',
+    "utf8"
   );
   await fs.promises.writeFile(
-    path.resolve(__dirname, './output/errors.csv'),
+    path.resolve(__dirname, "./output/errors.csv"),
     outputErrors
-      .map(line => [line.original.oldUrl, line.original.newUrl, line.error])
-      .join('\n'),
-    'utf8',
+      .map((line) => [line.original.oldUrl, line.original.newUrl, line.error])
+      .join("\n"),
+    "utf8"
   );
 };
 
@@ -68,18 +67,17 @@ const csvParser = ({ source }) => {
       .pipe(
         csv({
           mapHeaders: ({ index }) => index,
-        }),
+        })
       )
-      .on('data', data => parseResult.push(Object.values(data)))
-      .on('end', async () => {
-        resolve([{ name: 'general', items: parseResult }]);
+      .on("data", (data) => parseResult.push(Object.values(data)))
+      .on("end", async () => {
+        resolve([{ name: "general", items: parseResult }]);
       });
   });
 };
-const xlsxParser = ({ source, exclusiveSheets }) => {
-  return new Promise((resolve, reject) => {
+const xlsxParser = ({ source, exclusiveSheets }) =>
+  new Promise((resolve) => {
     const { Sheets } = XLSX.readFile(source);
-    // eslint-disable-next-line compat/compat
     const sheets = Object.entries(Sheets);
     let parsed = [];
     sheets.forEach(([sheetName, sheet]) => {
@@ -88,7 +86,7 @@ const xlsxParser = ({ source, exclusiveSheets }) => {
       }
       const sheetData = XLSX.utils.sheet_to_json(sheet, {
         header: 1,
-        defval: '',
+        defval: "",
         blankrows: true,
       });
       const sheetParsed = [];
@@ -108,13 +106,13 @@ const xlsxParser = ({ source, exclusiveSheets }) => {
     });
     resolve(parsed);
   });
-};
 const parsers = {
-  '.csv': csvParser,
-  '.xlsx': xlsxParser,
+  ".csv": csvParser,
+  ".xlsx": xlsxParser,
+  google: googleParser,
 };
 
-const cleanResults = res => {
+const cleanResults = (res) =>
   // 0 = oldUrl
   // 1 - newUrl
   // 2 - comment
@@ -122,11 +120,15 @@ const cleanResults = res => {
   // 4 - testonly (also excluded)
   // 4 - regexEnabled (also excluded)
 
-  return res.map(group => ({
-    ...group,
+  res.map((group) => {
+    return {
+      ...group,
 
-    items: group.items.filter(
-      ([oldUrl, newUrl, comment, exclude, testonly, regexEnabled]) => {
+      items: group.items.filter((item) => {
+        if (!item) {
+          return false;
+        }
+        const [oldUrl, newUrl, comment, exclude, testonly, regexEnabled] = item;
         if (!newUrl) {
           return false;
         }
@@ -135,15 +137,14 @@ const cleanResults = res => {
           return false;
         }
         return true;
-      },
-    ),
-  }));
-};
-
+      }),
+    };
+  });
 const checker = async ({
   baseUrl,
-  source = './input/redirects.csv',
+  source = "./input/redirects.csv",
   toNginx,
+  sheetId,
   debug = false,
   sheets: exclusiveSheets,
 }) => {
@@ -160,47 +161,51 @@ const checker = async ({
   });
   axiosRetry(api, {
     retries: 3,
-    retryDelay: retryCount => retryCount * 1000,
-    retryCondition: error => {
-      const retrieablErrors = ['ECONNRESET', 'ETIMEDOUT', 'EHOSTUNREACH'];
+    retryDelay: (retryCount) => retryCount * 1000,
+    retryCondition: (error) => {
+      const retrieablErrors = ["ECONNRESET", "ETIMEDOUT", "EHOSTUNREACH"];
       if (error.code && retrieablErrors.includes(error.code)) {
         return true;
       }
       return false;
     },
   });
-  if(debug){
+  if (debug) {
     setInterval(() => {
       if (httpsAgent.statusChanged) {
         console.log(
-          '[%s] agent status changed: %j',
+          "[%s] agent status changed: %j",
           Date(),
-          httpsAgent.getCurrentStatus(),
-          );
-        }
-      }, 2000);
+          httpsAgent.getCurrentStatus()
+        );
+      }
+    }, 2000);
   }
 
-  
-
-  const checkUrl = async ({ oldUrl, newUrl, comment, testonly, regexEnabled }) => {
-    if(regexEnabled){
-      return; 
+  const checkUrl = async ({
+    oldUrl,
+    newUrl,
+    comment,
+    testonly,
+    regexEnabled,
+  }) => {
+    if (regexEnabled) {
+      return;
     }
     try {
       const response = await api.get(`${baseUrl}${oldUrl}`);
       const fetchedUrl = response.request.res.responseUrl;
       const expectedUrl = newUrl;
       if (debug) {
-        console.log('expected');
+        console.log("expected");
         console.log(expectedUrl);
-        console.log('fetched');
+        console.log("fetched");
       }
-      let clean = expectedUrl.startsWith('http')
+      const clean = expectedUrl.startsWith("http")
         ? fetchedUrl
         : fetchedUrl.split(baseUrl)[1];
-      if(testonly && debug){
-        console.log('test-only')
+      if (testonly && debug) {
+        console.log("test-only");
       }
       if (clean !== expectedUrl) {
         if (clean === undefined) {
@@ -217,16 +222,16 @@ const checker = async ({
       }
       if (debug) {
         console.log(clean);
-        console.log('');
+        console.log("");
       }
     } catch (e) {
-      if (e.code === 'ETIMEDOUT') {
-        console.log('timeout');
+      if (e.code === "ETIMEDOUT") {
+        console.log("timeout");
         return;
       }
       if (!e.response) {
-        if (e.code === 'EHOSTUNREACH') {
-          console.error('HOST UNREACHABLE - ');
+        if (e.code === "EHOSTUNREACH") {
+          console.error("HOST UNREACHABLE - ");
           return;
         }
         errors.push({
@@ -234,9 +239,9 @@ const checker = async ({
             oldUrl,
             newUrl,
           },
-          error: 'max_redirects_exceeded',
+          error: "max_redirects_exceeded",
         });
-        console.log('');
+        console.log("");
         return;
       }
       errors.push({
@@ -247,15 +252,15 @@ const checker = async ({
         error: e.response.status,
       });
       console.error(`404 - expected: ${newUrl}`);
-      console.log('');
+      console.log("");
     }
   };
   // eslint-disable-next-line func-names
-  const checkUrls = function*(groups) {
+  const checkUrls = function* (groups) {
     const rows = [];
-    groups.forEach(group => group.items.forEach(item => rows.push(item)));
+    groups.forEach((group) => group.items.forEach((item) => rows.push(item)));
     console.log(
-      `start test of ${groups.length} groups - ${rows.length} redirects`,
+      `start test of ${groups.length} groups - ${rows.length} redirects`
     );
     console.log(`start test of ${rows.length} redirects`);
     // eslint-disable-next-line no-restricted-syntax
@@ -263,19 +268,30 @@ const checker = async ({
       if (debug) {
         console.log(`current: ${index}`);
       }
-      const [oldUrl, newUrl, comment, exclude, testonly, regexEnabled] = rows[index];
+      const [oldUrl, newUrl, comment, exclude, testonly, regexEnabled] = rows[
+        index
+      ];
       // eslint-disable-next-line no-await-in-loop
-      yield checkUrl({ oldUrl, newUrl, comment, exclude, testonly, regexEnabled });
+      yield checkUrl({
+        oldUrl,
+        newUrl,
+        comment,
+        exclude,
+        testonly,
+        regexEnabled,
+      });
     }
   };
-  const fileEnding = path.extname(source);
+  const fileEnding = sheetId ? "google" : path.extname(source);
   // determine source - start parsers
   let results = await parsers[fileEnding]({
     source: path.resolve(__dirname, source),
     exclusiveSheets,
+    sheetId,
   });
   try {
     results = cleanResults(results);
+
     if (toNginx) {
       await exportToNginx(results);
     }
@@ -284,7 +300,7 @@ const checker = async ({
 
     await pool.start();
 
-    console.log('done');
+    console.log("done");
 
     await writeErrors(errors);
   } catch (e) {
