@@ -19,17 +19,46 @@ To get an overview of all available options run
 Usage: redirect-checker [options]
 
 Options:
-  --url <url>        Base URL entries will be tested against.
-  --source <source>  Relative path to csv or xlsx file (default:
-                     "./input/redirects.xlsx")
-  --sheets <sheets>  Exclude only certain sheets by name, comma separated.
-                     e.g: jahresreport,halb jahres report
-  --debug            debug
-  --to-nginx         toNginx
-  -h, --help         display help for command
+  --url <url>                 Base URL entries will be tested against.
+  --source <source>           Relative path to csv or xlsx file (default: "./input/redirects.xlsx")
+  --sheets <sheets>           Exclude only certain sheets by name, comma separated. e.g: jahresreport,halb jahres report
+  --googleSheetsId <sheetId>  Google Sheet Id - eg. https://docs.google.com/spreadsheets/d/<google-sheets-id>
+  --debug                     enables additional output
+  --to-nginx                  creates an an redirects.map & redirects.txt nginx file
+  -h, --help                  display help for command
 ```
 
 Run basic check 
 ```bash
 ./redirect-checker --url "https://wienenergie.at"
 ```
+
+# Source
+
+## Document Structure
+
+| old                             | new                           | comment                           | exclude | testonly | regexEnabled |
+| ------------------------------- | ----------------------------- | --------------------------------- | ------- | -------- | ------------ |
+| /tarifkampangne                 | /tarifkampagne                | Fixes Typo                        |         |          |              |
+| ^/blog/energie                  | /blog/wien$1                  | Fix for blog                      |         |          | x            |
+| /blog/energie/going-live        | /blog/energie/wien/going-live | test for blog case                |         | x        |              |
+| /imnotsureifineedtoberedirected | /imprettysurethough           | Disabled - because we're not sure | x       |          |              |
+
+## Available Sources
+
+### File Based
+* csv
+* xlsx
+
+### Cloud Based
+
+**Google Sheets**
+
+Usage: 
+1. Add your credentials.json to /drivers/credentials.json
+   (https://developers.google.com/sheets/api/quickstart/nodejs)
+2. run the `redirect-checker` with the `--googleSheetsId "ID-HERE"` option
+3. You're all set. The script now uses the google sheet as the source
+
+> Please be aware the the file has to be a "real" google sheet (you can spot an invalid "xlsx" sheet by the green "xlsx" next to the sheet title)
+
