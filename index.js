@@ -17,10 +17,13 @@ const exportToNginx = async (groups) => {
   const structure = groups
     .map((group) => {
       const groupStructure = group.items
-        .map(
-          ([oldUrl, newUrl, comment, exclude, testonly, regexEnabled]) =>
-            `${oldUrl} ${newUrl};`,
-        )
+        .map(([oldUrl, newUrl, comment, exclude, testonly, regexEnabled]) => {
+          // according to the docs (\s|%20) should be used for spaces in NGINX ' '
+          return `${oldUrl.replace(/\s/g, '(\\s|%20)')} ${newUrl.replace(
+            /\s/g,
+            '(\\s|%20)',
+          )};`;
+        })
         .join('\n');
       return `#
 # ${group.name}
@@ -119,27 +122,43 @@ const cleanResults = (res) =>
   // 3 - exclude
   // 4 - testonly (also excluded)
   // 4 - regexEnabled (also excluded)
+  {
+    const oldUrls = []; // lookup copy
+    return res.map((group) => {
+      return {
+        ...group,
 
-  res.map((group) => {
-    return {
-      ...group,
+        items: group.items.filter((item) => {
+          if (!item) {
+            return false;
+          }
+          const [
+            oldUrl,
+            newUrl,
+            comment,
+            exclude,
+            testonly,
+            regexEnabled,
+          ] = item;
+          if (!newUrl) {
+            return false;
+          }
 
-      items: group.items.filter((item) => {
-        if (!item) {
-          return false;
-        }
-        const [oldUrl, newUrl, comment, exclude, testonly, regexEnabled] = item;
-        if (!newUrl) {
-          return false;
-        }
+          if (exclude) {
+            return false;
+          }
 
-        if (exclude) {
-          return false;
-        }
-        return true;
-      }),
-    };
-  });
+          // remove duplicates
+          if (oldUrls.includes(oldUrl)) {
+            return false;
+          }
+
+          oldUrls.push(oldUrl);
+          return true;
+        }),
+      };
+    });
+  };
 const checker = async ({
   baseUrl,
   source = './input/redirects.csv',
@@ -181,6 +200,8 @@ const checker = async ({
       }
     }, 2000);
   }
+
+  fs.mkdirSync('output', { recursive: true });
 
   const checkUrl = async ({
     oldUrl,
@@ -291,7 +312,6 @@ const checker = async ({
   });
   try {
     results = cleanResults(results);
-
     if (toNginx) {
       await exportToNginx(results);
     }

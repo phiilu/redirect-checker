@@ -1,20 +1,21 @@
 # Redirect Checker
 
-The Redirect Checker is a cli that allows to generate an nginx map from csvs/xlsx & checks the validity of the redirect - according to the input. 
+The Redirect Checker is a cli that allows to generate an nginx map from csvs/xlsx & checks the validity of the redirect - according to the input.
 
-## Installation 
+## Installation
 
 `yarn`
 
 ## Usage
 
-To get an overview of all available options run 
+To get an overview of all available options run
 
 ```bash
 ./redirect-checker --help
 ```
 
-**Output:** 
+**Output:**
+
 ```
 Usage: redirect-checker [options]
 
@@ -28,7 +29,8 @@ Options:
   -h, --help                  display help for command
 ```
 
-Run basic check 
+Run basic check
+
 ```bash
 ./redirect-checker --url "https://wienenergie.at"
 ```
@@ -40,21 +42,23 @@ Run basic check
 | old                             | new                           | comment                           | exclude | testonly | regexEnabled |
 | ------------------------------- | ----------------------------- | --------------------------------- | ------- | -------- | ------------ |
 | /tarifkampangne                 | /tarifkampagne                | Fixes Typo                        |         |          |              |
-| ^/blog/energie                  | /blog/wien$1                  | Fix for blog                      |         |          | x            |
+| ^/blog/energie                  | /blog/wien\$1                 | Fix for blog                      |         |          | x            |
 | /blog/energie/going-live        | /blog/energie/wien/going-live | test for blog case                |         | x        |              |
 | /imnotsureifineedtoberedirected | /imprettysurethough           | Disabled - because we're not sure | x       |          |              |
 
 ## Available Sources
 
 ### File Based
-* csv
-* xlsx
+
+- csv
+- xlsx
 
 ### Cloud Based
 
 **Google Sheets**
 
-Usage: 
+Usage:
+
 1. Add your credentials.json to /drivers/credentials.json
    (https://developers.google.com/sheets/api/quickstart/nodejs)
 2. run the `redirect-checker` with the `--googleSheetsId "ID-HERE"` option
@@ -62,3 +66,10 @@ Usage:
 
 > Please be aware the the file has to be a "real" google sheet (you can spot an invalid "xlsx" sheet by the green "xlsx" next to the sheet title)
 
+### Test the redirects.txt with NGINX
+
+You need to have nginx installed on your computer to use the cli
+
+```bash
+ nginx -t -c $(pwd)/nginx.conf
+```

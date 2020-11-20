@@ -24,5 +24,8 @@
   },
   "dependencies": {
     "googleapis": "39"
+  },
+  "scripts": {
+    "test:nginx": "sudo nginx -t -c $(pwd)/nginx.conf"
   }
 }
